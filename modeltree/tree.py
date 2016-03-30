@@ -7,6 +7,7 @@ from django.db.models import Q, loading
 from django.db.models.related import RelatedObject
 from django.core.exceptions import ImproperlyConfigured
 from django.utils.datastructures import MultiValueDict
+from django.db.backends.postgresql_psycopg2.base import DatabaseWrapper
 
 __all__ = ('ModelTree',)
 
@@ -902,11 +903,73 @@ class ModelTree(object):
 
         return str('__'.join(toks))
 
-    def query_condition(self, field, operator, value, model=None):
-        "Conveniece method for constructing a `Q` object for a given field."
-        lookup = self.query_string_for_field(field, operator=operator,
-                                             model=model)
-        return Q(**{lookup: value})
+    def query_clause_for_field(self, field, field_type='', operator=None, table='', value=None):
+        """Takes a `models.Field` instance and returns a query where clause relative
+        to the model.
+        """
+        op_map = DatabaseWrapper.operators.copy()
+        op_map['isnull'] = 'IS NULL'
+        op_map['range'] = 'BETWEEN %s and %s'
+
+        if isinstance(value, basestring):
+            value = "'" + value + "'"
+        if isinstance(value, bool):
+            value = str(value)
+
+        if type(value)==list:
+            for i, v in enumerate(value):
+                if isinstance(v, basestring):
+                    value[i] = "'" + v + "'"
+                else:
+                    value[i] = str(v)
+            value = tuple(value)
+
+        db_field = table + '.' + field.name
+
+        # by default the clause is constructed according to django's operators
+        if '%' in op_map.get(operator, ''):
+            operation = op_map[operator] % value
+        elif operator=='in':
+            operation = 'IN (' + ','.join(value) + ')'
+        else:
+            operation = op_map[operator]
+
+        clause = db_field + ' ' + operation
+
+        # handle array queries
+        if field_type.endswith('Float Array') or field_type.endswith('Integer Array'):
+            if operator=='gt':
+                clause = str(value) + ' < any(' + db_field + ')'
+            if operator=='gte':
+                clause = str(value) + ' <= any(' + db_field + ')'
+            if operator=='lt':
+                clause = str(value) + ' > any(' + db_field + ')'
+            if operator=='lte':
+                clause = str(value) + ' >= any(' + db_field + ')'
+            if operator=='range':
+                values = value + tuple([db_field])
+                clause = 'numrange(%s,%s) @> ANY(%s::numeric[])' % values
+
+        if field_type.endswith('String Array') or field_type.endswith('Choice Array') or field_type.endswith('Gene'):
+            if operator=='in':
+                clause = db_field + " && ARRAY[" + ','.join(value)  + ']::text[]'
+            if operator=='icontains':
+                clause = db_field + ' @> ARRAY[' + value + "]::text[]"
+            
+        if operator=='isnull' and value=='False':
+            clause = 'NOT ' + db_field + ' ' + operation
+        
+        return clause
+
+    def query_condition(self, field, operator, value, model=None, field_type=''):
+        "Conveniece method for query information for a given field."
+        if model:
+            table = model._meta.db_table
+        elif field.model:
+            table = field.model._meta.db_table
+
+        clause = self.query_clause_for_field(field, field_type=field_type, operator=operator, table=table, value=value)
+        return {'models':[model], 'query':clause}
 
     def add_joins(self, model, queryset=None, **kwargs):
         """Sets up all necessary joins up to the given model on the queryset.
