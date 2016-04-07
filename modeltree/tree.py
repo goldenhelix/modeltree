@@ -924,6 +924,8 @@ class ModelTree(object):
                     value[i] = str(v)
             value = tuple(value)
 
+        if field.name=='_id':
+            field_type = 'Integer'
         db_field = table + '.' + field.name
 
         # by default the clause is constructed according to django's operators
@@ -963,7 +965,7 @@ class ModelTree(object):
                 clause = 'NOT -2147483648 = ALL(' + db_field + ') ' + operation
             else:
                 clause = 'NOT ' + db_field + ' ' + operation
-        
+
         return clause
 
     def query_condition(self, field, operator, value, model=None, field_type=''):
