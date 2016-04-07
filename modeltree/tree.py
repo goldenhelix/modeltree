@@ -949,6 +949,8 @@ class ModelTree(object):
             if operator=='range':
                 values = value + tuple([db_field])
                 clause = 'numrange(%s,%s) @> ANY(%s::numeric[])' % values
+            if operator=='isnull':
+                clause = '-2147483648 = ALL(' + db_field + ') ' + operation
 
         if field_type.endswith('String Array') or field_type.endswith('Choice Array') or field_type.endswith('Gene'):
             if operator=='in':
@@ -957,7 +959,10 @@ class ModelTree(object):
                 clause = db_field + ' @> ARRAY[' + value + "]::text[]"
             
         if operator=='isnull' and value=='False':
-            clause = 'NOT ' + db_field + ' ' + operation
+            if field_type.endswith('Float Array') or field_type.endswith('Integer Array'):
+                clause = 'NOT -2147483648 = ALL(' + db_field + ') ' + operation
+            else:
+                clause = 'NOT ' + db_field + ' ' + operation
         
         return clause
 
