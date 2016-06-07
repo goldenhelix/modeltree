@@ -1,6 +1,7 @@
 import django
 import inspect
 import warnings
+import datetime
 from django.db import models, connection
 from django.conf import settings
 from django.db.models import Q, loading
@@ -907,21 +908,21 @@ class ModelTree(object):
         """Takes a `models.Field` instance and returns a query where clause relative
         to the model.
         """ 
-            
+        
 
         op_map = DatabaseWrapper.operators.copy()
         op_map['isnull'] = 'IS NULL'
         op_map['range'] = 'BETWEEN %s and %s'
 
-        if isinstance(value, basestring):
-            value = "'" + value + "'"
+        if isinstance(value, basestring) or type(value)==datetime.datetime:
+            value = "'" + str(value) + "'"
         if isinstance(value, bool):
             value = str(value)
 
         if type(value)==list:
             for i, v in enumerate(value):
-                if isinstance(v, basestring):
-                    value[i] = "'" + v + "'"
+                if isinstance(v, basestring) or type(v)==datetime.datetime:
+                    value[i] = "'" + str(v) + "'"
                 else:
                     value[i] = str(v)
             value = tuple(value)
@@ -969,7 +970,7 @@ class ModelTree(object):
             if operator=='in':
                 clause = db_field + " && ARRAY[" + ','.join(value)  + ']::text[]'
             if operator=='icontains':
-                clause = db_field + ' @> ARRAY[' + value + "]::text[]"
+                clause = db_field + ' @> ARRAY[' + value + "]::text[]"            
             
         if operator=='isnull' and value=='False':
             if field_type.endswith('Float Array') or field_type.endswith('Integer Array'):
