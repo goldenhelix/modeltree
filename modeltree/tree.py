@@ -1,7 +1,7 @@
 import django
 import inspect
 import warnings
-from django.db import models
+from django.db import models, connection
 from django.conf import settings
 from django.db.models import Q, loading
 from django.db.models.related import RelatedObject
@@ -906,7 +906,9 @@ class ModelTree(object):
     def query_clause_for_field(self, field, field_type='', operator=None, table='', value=None):
         """Takes a `models.Field` instance and returns a query where clause relative
         to the model.
-        """
+        """ 
+            
+
         op_map = DatabaseWrapper.operators.copy()
         op_map['isnull'] = 'IS NULL'
         op_map['range'] = 'BETWEEN %s and %s'
@@ -927,6 +929,15 @@ class ModelTree(object):
         if field.name=='_id':
             field_type = 'Integer'
         db_field = table + '.' + field.name
+
+        if field.name=='samples' and field_type=='Sample':
+            # get the entity id
+            matrix_table = table[:-7] + '_matrix'
+            entity_query = 'SELECT _id FROM ' + table + ' where samples in (' + ','.join(value) + ')'      
+            cursor = connection.cursor()
+            cursor.execute(entity_query)
+            value = tuple([str(r[0]) for r in cursor.fetchall()])
+            db_field = matrix_table + '._entity_id'
 
         # by default the clause is constructed according to django's operators
         if '%' in op_map.get(operator, ''):
