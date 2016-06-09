@@ -908,8 +908,7 @@ class ModelTree(object):
         """Takes a `models.Field` instance and returns a query where clause relative
         to the model.
         """ 
-        
-
+       
         op_map = DatabaseWrapper.operators.copy()
         op_map['isnull'] = 'IS NULL'
         op_map['range'] = 'BETWEEN %s and %s'
@@ -939,6 +938,7 @@ class ModelTree(object):
             cursor.execute(entity_query)
             value = tuple([str(r[0]) for r in cursor.fetchall()])
             db_field = matrix_table + '._entity_id'
+            table = matrix_table
 
         # by default the clause is constructed according to django's operators
         if '%' in op_map.get(operator, ''):
@@ -978,7 +978,7 @@ class ModelTree(object):
             else:
                 clause = 'NOT ' + db_field + ' ' + operation
 
-        return clause
+        return clause, table
 
     def query_condition(self, field, operator, value, model=None, field_type=''):
         "Conveniece method for query information for a given field."
@@ -987,8 +987,11 @@ class ModelTree(object):
         elif field.model:
             table = field.model._meta.db_table
 
-        clause = self.query_clause_for_field(field, field_type=field_type, operator=operator, table=table, value=value)
-        return {'models':[model], 'query':clause}
+        clause, table = self.query_clause_for_field(field, field_type=field_type, operator=operator, table=table, value=value)
+        if table.endswith('_matrix'):
+            return {'models':[model], 'matrix_query':clause}
+        else:
+            return {'models':[model], 'query':clause}
 
     def add_joins(self, model, queryset=None, **kwargs):
         """Sets up all necessary joins up to the given model on the queryset.
