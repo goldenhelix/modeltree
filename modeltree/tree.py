@@ -988,10 +988,11 @@ class ModelTree(object):
             table = field.model._meta.db_table
 
         clause, table = self.query_clause_for_field(field, field_type=field_type, operator=operator, table=table, value=value)
-        if table.endswith('_matrix'):
-            return {'models':[model], 'matrix_query':clause}
+        is_sample_query = (field.name=='samples' and field_type=='Sample')
+        if table.endswith('_matrix'):            
+            return {'models':[model], 'matrix_query':clause, 'is_sample_query':is_sample_query}
         else:
-            return {'models':[model], 'query':clause}
+            return {'models':[model], 'query':clause, 'is_sample_query':is_sample_query}
 
     def add_joins(self, model, queryset=None, **kwargs):
         """Sets up all necessary joins up to the given model on the queryset.
