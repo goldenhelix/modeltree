@@ -911,7 +911,11 @@ class ModelTree(object):
        
         op_map = DatabaseWrapper.operators.copy()
         op_map['isnull'] = 'IS NULL'
-        op_map['range'] = 'BETWEEN %s and %s'
+        if type(value)==list and len(value)>1 and value[0]==value[1]:
+            op_map['range'] = '::numeric = %s'
+            value = tuple([value[1]])
+        else:
+            op_map['range'] = 'BETWEEN %s and %s'
 
         if isinstance(value, basestring) or type(value)==datetime.datetime:
             value = "'" + str(value) + "'"
@@ -961,8 +965,12 @@ class ModelTree(object):
             if operator=='lte':
                 clause = str(value) + ' >= any(' + db_field + ')'
             if operator=='range':
-                values = value + tuple([db_field])
-                clause = 'numrange(%s,%s) @> ANY(%s::numeric[])' % values
+                if len(value)==1 or value[0]==value[1]:
+                    values = tuple([value[0]]) + tuple([db_field])
+                    clause = '%s = ANY(%s::numeric[])' % values
+                else:
+                    values = value + tuple([db_field])
+                    clause = 'numrange(%s,%s) @> ANY(%s::numeric[])' % values
             if operator=='isnull':
                 clause = '-2147483648 = ALL(' + db_field + ') ' + operation
 
