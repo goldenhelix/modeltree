@@ -2,6 +2,7 @@ import django
 import inspect
 import warnings
 import datetime
+import traceback
 from django.db import models, connection
 from django.conf import settings
 from django.db.models import Q, loading
@@ -904,11 +905,10 @@ class ModelTree(object):
 
         return str('__'.join(toks))
 
-    def query_clause_for_field(self, field, field_type='', operator=None, table='', value=None):
+    def query_clause_for_field(self, field_name, field_type='', operator=None, table='', value=None):
         """Takes a `models.Field` instance and returns a query where clause relative
         to the model.
         """ 
-       
         op_map = DatabaseWrapper.operators.copy()
         op_map['isnull'] = 'IS NULL'
         if type(value)==list and len(value)>1 and value[0]==value[1]:
@@ -930,11 +930,11 @@ class ModelTree(object):
                     value[i] = str(v)
             value = tuple(value)
 
-        if field.name=='_id':
+        if field_name=='_id':
             field_type = 'Integer'
-        db_field = table + '.' + field.name
+        db_field = table + '.' + field_name
 
-        if field.name=='samples' and field_type=='Sample':
+        if field_name=='samples' and field_type=='Sample':
             # get the entity id
             matrix_table = table[:-7] + '_matrix'
             entity_query = 'SELECT _id FROM ' + table + ' where samples in (' + ','.join(value) + ')'      
@@ -949,20 +949,22 @@ class ModelTree(object):
             operation = op_map[operator] % value
         elif operator=='in':
             operation = 'IN (' + ','.join(value) + ')'
-        else:
+        elif operator in op_map:
             operation = op_map[operator]
+        else:
+            operation = operator + ' %s'
 
         clause = db_field + ' ' + operation
 
         # handle array queries
-        if field_type.endswith('Float Array') or field_type.endswith('Integer Array'):
-            if operator=='gt':
+        if field_type.endswith('Float Array') or field_type.endswith('Integer Array') or field_type.endswith('Boolean Array'):
+            if operator=='gt' or operator=='>':
                 clause = str(value) + ' < any(' + db_field + ')'
-            if operator=='gte':
+            if operator=='gte' or operator=='>=':
                 clause = str(value) + ' <= any(' + db_field + ')'
-            if operator=='lt':
+            if operator=='lt' or operator=='<':
                 clause = str(value) + ' > any(' + db_field + ')'
-            if operator=='lte':
+            if operator=='lte' or operator=='<=':
                 clause = str(value) + ' >= any(' + db_field + ')'
             if operator=='range':
                 if len(value)==1 or value[0]==value[1]:
@@ -971,14 +973,23 @@ class ModelTree(object):
                 else:
                     values = value + tuple([db_field])
                     clause = 'numrange(%s,%s) @> ANY(%s::numeric[])' % values
+            if operator=='=':
+                clause = db_field + ' = ' + "ARRAY[" + ','.join([s for s in value]) + "]"
+            if operator=='in':
+                clause = db_field + " && ARRAY[" + ','.join(value)  + ']'
+            if operator=='contains':
+                value = "'{" + str(value).replace('[', '{').replace(']', '}').replace("'", '') + "}'"
+                clause = db_field + ' @> ' + value
             if operator=='isnull':
                 clause = '-2147483648 = ALL(' + db_field + ') ' + operation
 
         if field_type.endswith('String Array') or field_type.endswith('Choice Array') or field_type.endswith('Gene'):
-            if operator=='in':
+            if operator=='in' or operator=='overlaps':
                 clause = db_field + " && ARRAY[" + ','.join(value)  + ']::text[]'
-            if operator=='icontains':
-                clause = db_field + ' @> ARRAY[' + value + "]::text[]"            
+            if operator=='icontains' or operator=='contains':
+                clause = db_field + ' @> ARRAY[' + value + "]::text[]"    
+            if operator=='=' or operator=="<>":
+                clause = db_field + " " + operator + " ARRAY[" + ','.join(value)  + ']::text[]'        
             
         if operator=='isnull' and value=='False':
             if field_type.endswith('Float Array') or field_type.endswith('Integer Array'):
@@ -988,15 +999,17 @@ class ModelTree(object):
 
         return clause, table
 
-    def query_condition(self, field, operator, value, model=None, field_type=''):
+    def query_condition(self, field, operator, value, model=None, field_type='', table=None):
         "Conveniece method for query information for a given field."
+        field_name = field.name
+
         if model:
             table = model._meta.db_table
         elif field.model:
             table = field.model._meta.db_table
-
-        clause, table = self.query_clause_for_field(field, field_type=field_type, operator=operator, table=table, value=value)
-        is_sample_query = (field.name=='samples' and field_type=='Sample')
+            
+        clause, table = self.query_clause_for_field(field_name, field_type=field_type, operator=operator, table=table, value=value)
+        is_sample_query = (field_name=='samples' and field_type=='Sample')
         if table.endswith('_matrix'):            
             return {'models':[model], 'matrix_query':clause, 'is_sample_query':is_sample_query}
         else:
