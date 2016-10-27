@@ -974,7 +974,7 @@ class ModelTree(object):
                     values = value + tuple([db_field])
                     clause = 'numrange(%s,%s) @> ANY(%s::numeric[])' % values
             if operator=='=':
-                clause = db_field + ' = ' + "ARRAY[" + ','.join([s for s in value]) + "]"
+                clause = db_field + '::numeric[] = ' + "ARRAY[" + ','.join([s for s in value]) + "]"
             if operator=='in':
                 clause = db_field + " && ARRAY[" + ','.join(value)  + ']'
             if operator=='contains':
