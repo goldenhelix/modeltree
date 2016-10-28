@@ -975,7 +975,7 @@ class ModelTree(object):
                     clause = 'numrange(%s,%s) @> ANY(%s::numeric[])' % values
             if operator=='=':
                 clause = db_field + '::numeric[] = ' + "ARRAY[" + ','.join([s for s in value]) + "]"
-            if operator=='in':
+            if operator=='in' or operator=='overlaps':
                 clause = db_field + " && ARRAY[" + ','.join(value)  + ']'
             if operator=='contains':
                 value = "'{" + str(value).replace('[', '{').replace(']', '}').replace("'", '') + "}'"
