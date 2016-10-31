@@ -973,8 +973,8 @@ class ModelTree(object):
                 else:
                     values = value + tuple([db_field])
                     clause = 'numrange(%s,%s) @> ANY(%s::numeric[])' % values
-            if operator=='=':
-                clause = db_field + '::numeric[] = ' + "ARRAY[" + ','.join([s for s in value]) + "]"
+            if operator=='=' or operator=='<>':
+                clause = db_field + '::numeric[] ' + operator + " ARRAY[" + ','.join([s for s in value]) + "]::numeric[]"
             if operator=='in' or operator=='overlaps':
                 clause = db_field + " && ARRAY[" + ','.join(value)  + ']'
             if operator=='contains':
@@ -988,7 +988,7 @@ class ModelTree(object):
                 clause = db_field + " && ARRAY[" + ','.join(value)  + ']::text[]'
             if operator=='icontains' or operator=='contains':
                 clause = db_field + ' @> ARRAY[' + value + "]::text[]"    
-            if operator=='=' or operator=="<>":
+            if operator=='=' or operator=='<>':
                 clause = db_field + " " + operator + " ARRAY[" + ','.join(value)  + ']::text[]'        
             
         if operator=='isnull' and value=='False':
