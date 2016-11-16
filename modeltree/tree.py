@@ -976,7 +976,7 @@ class ModelTree(object):
             if operator=='=' or operator=='<>':
                 clause = db_field + '::numeric[] ' + operator + " ARRAY[" + ','.join([s for s in value]) + "]::numeric[]"
             if operator=='in' or operator=='overlaps':
-                clause = db_field + "::numeric[] && ARRAY[" + ','.join(value)  + ']'
+                clause = db_field + "::numeric[] && ARRAY[" + ','.join(value)  + ']::numeric[]'
             if operator=='contains':
                 value = "'{" + str(value).replace('[', '{').replace(']', '}').replace("'", '') + "}'"
                 clause = db_field + ' @> ' + value
