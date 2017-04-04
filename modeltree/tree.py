@@ -918,6 +918,8 @@ class ModelTree(object):
             op_map['range'] = 'BETWEEN %s and %s'
 
         if isinstance(value, basestring) or type(value)==datetime.datetime:
+            if field_type=='String' and operator=='icontains':
+                value = '%' + value + '%'
             value = "'" + str(value) + "'"
         if isinstance(value, bool):
             value = str(value)
@@ -996,7 +998,6 @@ class ModelTree(object):
                 clause = 'NOT -2147483648 = ALL(' + db_field + ') ' + operation
             else:
                 clause = 'NOT ' + db_field + ' ' + operation
-
         return clause, table
 
     def query_condition(self, field, operator, value, model=None, field_type='', table=None):
