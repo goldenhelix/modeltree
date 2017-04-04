@@ -918,8 +918,8 @@ class ModelTree(object):
             op_map['range'] = 'BETWEEN %s and %s'
 
         if isinstance(value, basestring) or type(value)==datetime.datetime:
-            if field_type=='String' and operator=='icontains':
-                value = '%' + value + '%'
+            #if field_type=='String' and operator=='icontains':
+            #    value = '%%' + value + '%%'
             value = "'" + str(value) + "'"
         if isinstance(value, bool):
             value = str(value)
