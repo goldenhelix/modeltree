@@ -911,6 +911,7 @@ class ModelTree(object):
         """ 
         op_map = DatabaseWrapper.operators.copy()
         op_map['isnull'] = 'IS NULL'
+        op_map['iexact'] = 'ILIKE %s'
         if type(value)==list and len(value)>1 and value[0]==value[1]:
             op_map['range'] = '::numeric = %s'
             value = tuple([value[1]])
@@ -918,8 +919,8 @@ class ModelTree(object):
             op_map['range'] = 'BETWEEN %s and %s'
 
         if isinstance(value, basestring) or type(value)==datetime.datetime:
-            #if field_type=='String' and operator=='icontains':
-            #    value = '%%' + value + '%%'
+            if field_type=='String' and operator=='icontains':
+                value = '%%' + value + '%%'
             value = "'" + str(value) + "'"
         if isinstance(value, bool):
             value = str(value)
@@ -988,7 +989,7 @@ class ModelTree(object):
         if field_type.endswith('String Array') or field_type.endswith('Choice Array') or field_type.endswith('Gene'):
             if operator=='in' or operator=='overlaps':
                 clause = db_field + " && ARRAY[" + ','.join(value)  + ']::text[]'
-            if operator=='icontains' or operator=='contains':
+            if operator=='icontains' or operator=='contains' or operator=='iexact':
                 clause = db_field + ' @> ARRAY[' + value + "]::text[]"    
             if operator=='=' or operator=='<>':
                 clause = db_field + " " + operator + " ARRAY[" + ','.join(value)  + ']::text[]'        
@@ -998,6 +999,7 @@ class ModelTree(object):
                 clause = 'NOT -2147483648 = ALL(' + db_field + ') ' + operation
             else:
                 clause = 'NOT ' + db_field + ' ' + operation
+
         return clause, table
 
     def query_condition(self, field, operator, value, model=None, field_type='', table=None):
