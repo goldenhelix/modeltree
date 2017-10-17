@@ -912,7 +912,8 @@ class ModelTree(object):
         op_map = DatabaseWrapper.operators.copy()
         op_map['isnull'] = 'IS NULL'
         op_map['iexact'] = 'ILIKE %s'
-        if type(value)==list and len(value)>1 and value[0]==value[1]:
+
+        if type(value)==list and len(value)>1 and value[0]==value[1] and value[0] != 'Missing':
             op_map['range'] = '::numeric = %s'
             value = tuple([value[1]])
         else:
@@ -999,7 +1000,6 @@ class ModelTree(object):
                 clause = 'NOT -2147483648 = ALL(' + db_field + ') ' + operation
             else:
                 clause = 'NOT ' + db_field + ' ' + operation
-
         return clause, table
 
     def query_condition(self, field, operator, value, model=None, field_type='', table=None):
