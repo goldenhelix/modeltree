@@ -1000,6 +1000,16 @@ class ModelTree(object):
                 clause = 'NOT -2147483648 = ALL(' + db_field + ') ' + operation
             else:
                 clause = 'NOT ' + db_field + ' ' + operation
+
+        if operator=='isnull' and table:
+            cursor = connection.cursor()
+            select = "select allowed_values from avocado_datafield where model_name='" + table + "' and field_name='" + field_name + "';"
+            cursor.execute(select)
+            allowed_values = cursor.fetchone()[0]
+            if allowed_values:
+                c = ",".join(["'"+a+"'" for a in allowed_values])
+                clause += " OR " + db_field + " <> ALL(ARRAY[" + c + "])" 
+
         return clause, table
 
     def query_condition(self, field, operator, value, model=None, field_type='', table=None):
