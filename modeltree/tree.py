@@ -1002,13 +1002,17 @@ class ModelTree(object):
                 clause = 'NOT ' + db_field + ' ' + operation
 
         if operator=='isnull' and table:
+            # non-enum values should be treated as missing
             cursor = connection.cursor()
-            select = "select allowed_values from avocado_datafield where model_name='" + table + "' and field_name='" + field_name + "';"
+            select = "select type, allowed_values from avocado_datafield where model_name='" + table + "' and field_name='" + field_name + "';"
             cursor.execute(select)
-            allowed_values = cursor.fetchone()[0]
+            field_type, allowed_values = cursor.fetchone()
             if allowed_values:
                 c = ",".join(["'"+a+"'" for a in allowed_values])
-                clause += " OR " + db_field + " <> ALL(ARRAY[" + c + "])" 
+                if field_type == 'Choice':
+                    clause += " OR " + db_field + " <> ALL(ARRAY[" + c + "])" 
+                elif field_type == 'Choice Array':
+                    clause += " OR NOT " + db_field + " && ARRAY[" + c + "]"
 
         return clause, table
 
