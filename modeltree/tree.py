@@ -1006,14 +1006,15 @@ class ModelTree(object):
             cursor = connection.cursor()
             select = "select type, allowed_values from avocado_datafield where model_name='" + table + "' and field_name='" + field_name + "';"
             cursor.execute(select)
-            field_type, allowed_values = cursor.fetchone()
-            if allowed_values:
-                c = ",".join(["'"+a+"'" for a in allowed_values])
-                if field_type == 'Choice':
-                    clause += " OR " + db_field + " <> ALL(ARRAY[" + c + "])" 
-                elif field_type == 'Choice Array':
-                    clause += " OR NOT " + db_field + " && ARRAY[" + c + "]"
-
+            if cursor.rowcount > 0:
+                field_type, allowed_values = cursor.fetchone()
+                if allowed_values:
+                    c = ",".join(["'"+a+"'" for a in allowed_values])
+                    if field_type == 'Choice':
+                        clause += " OR " + db_field + " <> ALL(ARRAY[" + c + "])" 
+                    elif field_type == 'Choice Array':
+                        clause += " OR NOT " + db_field + " && ARRAY[" + c + "]"
+            
         return clause, table
 
     def query_condition(self, field, operator, value, model=None, field_type='', table=None):
