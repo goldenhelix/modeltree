@@ -922,14 +922,18 @@ class ModelTree(object):
         if isinstance(value, basestring) or type(value)==datetime.datetime:
             if field_type=='String' and operator=='icontains':
                 value = '%%' + value + '%%'
-            value = "'" + str(value) + "'"
+            value = str(value)
+            value = value.replace("'", "''")
+            value = "'" + value + "'"
         if isinstance(value, bool):
             value = str(value)
 
         if type(value)==list:
             for i, v in enumerate(value):
                 if isinstance(v, basestring) or type(v)==datetime.datetime:
-                    value[i] = "'" + str(v) + "'"
+                    v = str(v)
+                    v = v.replace("'", "''")
+                    value[i] = "'" + v + "'"
                 else:
                     value[i] = str(v)
             value = tuple(value)
